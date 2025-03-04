@@ -1,2 +1,0 @@
-aarch64-elf-as boot.S -o boot.o
-aarch64-elf-ld boot.o -o boot.elf -Ttext=0x40000000 --entry=_start
