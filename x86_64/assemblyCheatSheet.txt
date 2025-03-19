@@ -1,0 +1,207 @@
+Summarized Notes on 32-bit Assembly Instructions
+
+⸻
+
+General Assembly Instructions
+
+These are the fundamental instructions used in all modes (16-bit, 32-bit, 64-bit).
+
+CPU Registers (32-bit Mode)
+
+Register	Purpose
+
+eax	        General-purpose (Accumulator)
+ebx	        General-purpose (Base)
+ecx	        Counter (used in loops)
+edx	        Data register (I/O operations, multiplications)
+esi	        Source index (for string operations)
+edi	        Destination index (for string operations)
+ebp	        Base pointer (used for stack frames)
+esp	        Stack pointer (points to the top of the stack)
+eip	        Instruction pointer (stores the address of the next instruction)
+eflags	    Stores CPU status flags (Zero Flag, Carry Flag, etc.)
+
+
+
+⸻
+
+📌 Data Movement Instructions
+
+Move values between registers and memory.
+
+Instruction	        Description
+
+mov eax, 5	        Store 5 in eax
+mov ebx, eax	    Copy eax into ebx
+mov [var], eax	    Store eax at memory address var
+lea eax, [var]	    Load the address of var into eax
+
+lea vs. mov
+	•	lea eax, [var] → Loads the address of var.
+	•	mov eax, [var] → Loads the value stored at var.
+
+⸻
+
+Arithmetic Instructions
+
+Used for mathematical operations.
+
+Instruction	    Description
+
+add eax, ebx	eax = eax + ebx
+sub eax, ebx	eax = eax - ebx
+imul eax, ebx	eax = eax * ebx
+idiv ebx	    eax ÷ ebx, result in eax, remainder in edx
+inc eax	        eax = eax + 1
+dec eax	        eax = eax - 1
+
+Multiplication & Division
+
+	Multiplication (imul)
+	•	If eax = 3, ebx = 4
+	•	imul ebx → eax = 12
+
+	Division (idiv)
+	•	If eax = 10, ebx = 3
+	•	idiv ebx → eax = 3 (quotient), edx = 1 (remainder)
+
+⸻
+
+Logic Instructions
+
+Used for bitwise operations and comparisons.
+
+Instruction	    Description
+
+and eax, ebx	eax = eax & ebx
+or eax, ebx	    `eax = eax
+xor eax, ebx	eax = eax ^ ebx
+not eax	        Invert all bits in eax
+shl eax, 2	    Shift left by 2 (multiply by 4)
+shr eax, 2	    Shift right by 2 (divide by 4)
+
+
+
+⸻
+
+Comparison & Conditional Jumps
+
+Used for decision-making.
+
+Instruction	    Description
+
+cmp eax, ebx	Compare eax and ebx
+je label	    Jump if eax == ebx (Zero Flag set)
+jne label	    Jump if eax != ebx
+jg label	    Jump if eax > ebx (signed)
+jl label	    Jump if eax < ebx (signed)
+jge label	    Jump if eax >= ebx (signed)
+jle label	    Jump if eax <= ebx (signed)
+
+
+⸻
+
+Stack Instructions
+
+Used for function calls and temporary storage.
+
+Instruction	    Description
+
+push eax	    Store eax on the stack
+pop eax	        Retrieve the last pushed value into eax
+call function	Call a subroutine (push eip, jump to function)
+ret	            Return from a function (pop eip)
+
+How Stack Works
+	•	Pushing values (Last In, First Out)
+
+push eax
+push ebx
+pop eax  ; eax gets the last pushed value (ebx)
+pop ebx  ; ebx gets the first pushed value (original eax)
+
+
+
+⸻
+
+Function Calling Conventions
+
+Calling a Function
+	1.	Push function arguments (if any).
+	2.	Call the function (call functionName).
+	3.	Function executes.
+	4.	Clean up the stack if necessary.
+
+Example:
+
+push 5
+push 3
+call addNumbers
+
+addNumbers:
+    pop ebx  ; Retrieve second number
+    pop eax  ; Retrieve first number
+    add eax, ebx
+    ret
+
+
+⸻
+
+Looping Instructions
+
+Used to repeat code.
+
+Instruction     Description
+
+loop label	    Decrement ecx and jump if ecx != 0
+jmp label	    Unconditional jump
+rep stosd	    Fill memory with a value (used for clearing the screen)
+
+Example: Count Down from 10
+
+mov ecx, 10
+.loop:
+    dec ecx
+    jnz .loop
+
+
+
+⸻
+
+Input/Output Instructions
+
+Used for interacting with hardware (ports).
+
+Instruction	    Description
+
+in al, 0x60	    Read from I/O port 0x60 (keyboard)
+out 0x60, al	Write to I/O port 0x60
+
+Example: Wait for Keyboard Input
+
+waitKey:
+    in al, 0x64
+    test al, 1
+    jz waitKey
+    in al, 0x60  ; Read key press
+
+
+
+⸻
+
+Interrupt Instructions
+
+Used for system calls or BIOS functions.
+
+Instruction	    Description
+
+int 0x10	    Video services (printing to screen)
+int 0x13	    Disk services (reading/writing to disk)
+int 0x16	    Keyboard input services
+int 0x1A	    System timer services
+
+Example: Print a Character Using BIOS
+
+mov ah, 0x0E  ; BIOS teletype function
+mov al, 'A'   ; Character to print
+int 0x10      ; Call BIOS interrupt
