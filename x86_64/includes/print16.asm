@@ -1,4 +1,4 @@
-printString:
+print16:
     mov ah, 0x0e    ; BIOS teletype function (prints a character)
     .loop:
         lodsb           ; load next character from SI into AL
@@ -9,7 +9,7 @@ printString:
     .done:
         ret
 
-printNewline:
+println16:
     mov ah, 0x0e
     mov al, 13      ; carriage Return '\r'
     int 0x10
@@ -17,7 +17,7 @@ printNewline:
     int 0x10
     ret
 
-printHexLower:
+printHexLower16:
     pusha
     mov cx, 2               ; DL is one byte (two hex digits)
     mov bx, hexBufferLower  ; store hex characters
@@ -39,13 +39,13 @@ printHexLower:
 
         mov byte [bx], 0    ; null terminate
         mov si, hexBufferLower
-        call printString    ; print the formatted hex string
+        call print16    ; print the formatted hex string
 
         popa
         ret
 
 ; put values into AX before printing
-printHex:
+printHex16:
     pusha
     mov cx, 4               ; 4 hex digits (16-bit value)
     mov bx, hexBuffer       ; store hex characters
@@ -69,7 +69,7 @@ printHex:
 
         mov byte [bx], 0    ; null terminate
         mov si, hexBuffer
-        call printString    ; print formatted hex string
+        call print16    ; print formatted hex string
 
         popa
         ret

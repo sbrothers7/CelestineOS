@@ -25,7 +25,7 @@ eflags	    Stores CPU status flags (Zero Flag, Carry Flag, etc.)
 
 ⸻
 
-📌 Data Movement Instructions
+Data Movement Instructions
 
 Move values between registers and memory.
 

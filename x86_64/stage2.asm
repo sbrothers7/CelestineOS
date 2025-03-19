@@ -1,31 +1,27 @@
-BITS 16
-
+[bits 16]
 start:
     cli
 
     mov si, bootMsg
-    call printString
-    call printNewline
+    call print16
+    call println16
 
-    call setPIT
-    call wait3s
-    
-    .noInput:
-        call handleClear
-        jmp enableProtectedMode
+    call delay
+    jmp enableProtectedMode
+    jmp exit
 
 load16B:
     call handleClear
 
     mov si, loading16Msg
-    call printString
-    call printNewline
-    call printNewline
+    call print16
+    call println16
+    call println16
 
     mov si, helloMsg
-    call printString
-    call printNewline
-    call printNewline
+    call print16
+    call println16
+    call println16
 
     .getInput:
         call readInput
@@ -34,42 +30,25 @@ load16B:
 
     jmp exit
 
-setPIT:
-    mov al, 0x36            ; Mode 2 (Rate Generator)
-    out 0x43, al            ; Send mode command to PIT
+delay:
+    mov ah, 0x86       ; Wait function
+    mov cx, 0x002d     ; Upper 16 bits
+    mov dx, 0xc6c0     ; Lower 16 bits
 
-    mov ax, 1000000         ; ??? 
-    out 0x40, al            ; Send low byte
-    mov al, ah
-    out 0x40, al            ; Send high byte
+    ; Duration          CX:DX Value
+    ; 500ms             0x0007, 0xA120
+    ; 1s                0x000F, 0x4240
+    ; 2s                0x001E, 0x8480
+    ; 3s                0x002D, 0xC6C0
 
+    int 0x15           ; Call BIOS
+
+    mov ah, 0x01        ; BIOS check keyboard buffer
+    int 0x16            ; zero flag (ZF) is set if no key is available
+    jnz load16B
     ret
-
-wait3s:
-    mov cx, 17000
-    .waitLoop:
-        ; space
-        mov al, ' '
-        int 0x10
-
-        ; backspace
-        mov al, 8
-        int 0x10
-        mov al, ' '
-        int 0x10
-        mov al, 8
-        int 0x10
-
-        mov ah, 0x01        ; BIOS check keyboard buffer
-        int 0x16            ; zero flag (ZF) is set if no key is available
-        jnz load16B
-
-        in al, 0x40         ; read PIT counter
-        loop .waitLoop      ; decrease CX, loop if not 0
-
-        ret
-
-%include "includes/print.asm"
+    
+%include "includes/print16.asm"
 readInput:
     mov di, inputBuffer     ; point to inputBuffer
     xor cx, cx              ; track input length
@@ -109,7 +88,7 @@ readInput:
     .return:
         xor al, al
         stosb               ; null terminate the buffer
-        call printNewline
+        call println16
         ret
 
 compareStrings:
@@ -126,17 +105,18 @@ compareStrings:
         inc di
 
         jmp .loop           ; otherwise, keep comparing
+
     .notEqual:
         ; mov si, debugNotEqual
-        ; call printString
-        ; call printNewline
+        ; call print16
+        ; call println16
         xor ax, ax
         ret
 
     .equal:
         ; mov si, debugEqual
-        ; call printString
-        ; call printNewline
+        ; call print16
+        ; call println16
         mov ax, 1
         ret
 
@@ -173,40 +153,30 @@ processCommand:
         mov di, shutdownCmd
         call compareStrings
         test ax, ax
-        jz .checkReboot
+        jz .checkRestart
 
         call handleShutdown
         ret
-
-    .checkReboot:
-        mov di, rebootCmd
-        call compareStrings
-        test ax, ax
-        jz .checkRestart
-
-        call handleReboot
-        ret
     
     .checkRestart:
-        mov di, rebootCmdAlt
+        mov di, restartCmd
         call compareStrings
         test ax, ax
         jz .errorMessage
 
-        call handleReboot
-        ret
+        jmp handleRestart
 
     .errorMessage:
         mov si, errorMsg
-        call printString
-        call printNewline
+        call print16
+        call println16
         ret
 
 handleEcho:
     mov si, inputBuffer
     add si, 5               ; skip "echo "
-    call printString
-    call printNewline
+    call print16
+    call println16
     ret
 
 handleClear:
@@ -229,14 +199,14 @@ handleClear:
 
 handleHelp:
     mov si, helpMsg
-    call printString
-    call printNewline
+    call print16
+    call println16
     ret
 
 handleShutdown:
     mov si, shutdownMsg
-    call printString
-    call printNewline
+    call print16
+    call println16
 
     ; Try to shut down using QEMU
     mov ax, 0x5307          ; APM BIOS function
@@ -249,21 +219,57 @@ handleShutdown:
     hlt
     jmp $
 
-handleReboot:
+handleRestart:
     mov si, rebootMsg
-    call printString
-    call printNewline
+    call print16
+    call println16
 
     ; Send CPU reset
-    jmp 0xffff:0x0000  ; Jump to BIOS reset vector
+    jmp 0xffff:0x0000       ; Jump to BIOS reset vector
 
 exit:
-    jmp exit
+    cli
+    hlt
+    jmp $
 
 enableProtectedMode:
+    call handleClear
     mov si, loading32Msg
-    call printString
-    call printNewline
+    call print16
+
+    mov si, debug
+    call print16
+    call println16
+
+    lgdt [gdt_descriptor]   ; load Global Descriptor Table (GDT)
+
+    mov si, debug
+    call print16
+    call println16
+
+    ; enable Protected Mode
+    cli
+    mov eax, cr0
+    or eax, 1               ; set PE (Protection Enable) bit
+    mov cr0, eax
+
+    mov si, debug
+    call print16
+    call println16
+
+    jmp CODE_SEG:init32     ; far jump to 32-bit mode (flush CPU pipeline)
+
+gdt_start:
+    dq 0x0000000000000000   ; null descriptor
+    dq 0x00cf9a000000ffff   ; code segment (32-bit)
+    dq 0x00cf92000000ffff   ; data segment (32-bit)
+
+gdt_descriptor:
+    dw gdt_descriptor - gdt_start - 1   ; limit
+    dd gdt_start                        ; base
+
+CODE_SEG equ 0x08
+DATA_SEG equ 0x10
 
 inputBuffer: times 32 db 0
 
@@ -271,15 +277,15 @@ echoCmd db "echo", 0
 clearCmd db "clear", 0
 helpCmd db "help", 0
 shutdownCmd db "shutdown", 0
-rebootCmd db "reboot", 0
-rebootCmdAlt db "restart", 0
+restartCmd db "restart", 0
 
 debugEqual db "Strings match!", 0
 debugNotEqual db "Strings do not match!", 0
+debugTick db "Current: ", 0
 debug db "debug", 0
 
 errorMsg db "Command not found!", 0
-helpMsg db "Commands: echo, clear, help, shutdown, reboot (restart)", 0
+helpMsg db "Commands: echo, clear, help, shutdown, restart", 0
 shutdownMsg db "Shutting down...", 0
 rebootMsg db "Rebooting...", 0
 helloMsg db "Welcome to CelestineOS", 0
@@ -287,5 +293,43 @@ helloMsg db "Welcome to CelestineOS", 0
 bootMsg db "Press any key for 16-bit Kernel. Booting 32-bit in 3 seconds...", 0
 loading16Msg db "Loading 16-bit kernel...", 0
 loading32Msg db "Loading 32-bit kernel...", 0
+
+[bits 32]
+init32:
+    cli
+    mov ax, DATA_SEG        ; Load 32-bit data segments
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+    mov esp, 0x90000        ; set stack pointer in high memory
+
+    jmp $
+
+clearScreen32:
+    mov edi, 0xB8000        ; VGA memory address
+    mov eax, 0x07200720     ; space (' ') with color attribute 0x07
+    mov ecx, 2000           ; 80x25 screen (2000 characters)
+    rep stosd               ; fill VGA memory
+    ret
+
+print32:
+    pusha
+    mov edi, 0xB8000        ; VGA memory address
+
+    .loop:
+        lodsb               ; load next character from [esi] into AL
+        test al, al         ; check if null terminator
+        je .done
+        mov ah, 0x07        ; attribute (white text on black background)
+        stosw               ; store character + attribute in VGA memory
+        jmp .loop
+
+    .done:
+        popa
+        ret
+
+welcomeMsg db "Welcome to 32-bit mode!", 0
 
 times 1024 - ($ - $$) db 0

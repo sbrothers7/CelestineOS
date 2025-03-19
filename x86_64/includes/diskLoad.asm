@@ -8,18 +8,18 @@ diskLoad:
     int 0x13            ; BIOS disk read
     jc diskError        ; If error, jump to diskError
 
-    call printNewline
+    call println16
     mov si, successMsg
-    call printString
+    call print16
     ret
 
 diskError:
-    call printNewline
+    call println16
     mov al, ah          ; Print BIOS error code
-    call printHexLower
+    call printHexLower16
     
     mov si, errorMsg
-    call printString
+    call print16
     jmp halt
 
 halt:

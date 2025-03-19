@@ -1,11 +1,11 @@
-ORG 0x7c00              ; BIOS loads the bootloader at 0x7c00
-BITS 16                 ; 16-bit real mode
+org 0x7c00              ; BIOS loads the bootloader at 0x7c00
+bits 16                 ; 16-bit real mode
 
 start:
     mov [bootDrive], dl
     
     mov si, bootMsg
-    call printString
+    call print16
 
     mov ah, 0x0e
     mov al, 2           ; number of sectors to load
@@ -18,10 +18,10 @@ start:
 
     call diskLoad
 
-    call printNewline
+    call println16
     ; mov si, bootJumpMsg
-    ; call printString
-    call printNewline
+    ; call print16
+    call println16
 
     cli
     mov ax, 0x9000
@@ -34,7 +34,7 @@ start:
 
     jmp 0x9000:0000
 
-%include "includes/print.asm"
+%include "includes/print16.asm"
 %include "includes/diskLoad.asm"
 
 bootMsg: db "Loading CelestineOS...", 0
