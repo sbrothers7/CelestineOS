@@ -2,7 +2,7 @@
 diskLoad:
     mov ah, 0x02        ; BIOS Read Sectors
     mov ch, 0           ; Cylinder 0
-    mov cl, 2           ; Sector 2 (Bootloader is sector 1)
+    mov cl, 0x02        ; Sector 2 (Bootloader is sector 1)
     mov dh, 0           ; Head 0
 
     int 0x13            ; BIOS disk read

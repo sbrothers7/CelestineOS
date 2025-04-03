@@ -1,14 +1,16 @@
 [bits 16]
-start:
-    cli
+[org 0x9000]
 
+start:
+    call handleClear
+
+    cli
     mov si, bootMsg
     call print16
     call println16
 
     call delay
     jmp enableProtectedMode
-    jmp exit
 
 load16B:
     call handleClear
@@ -17,6 +19,8 @@ load16B:
     call print16
     call println16
     call println16
+
+    call handleClear
 
     mov si, helloMsg
     call print16
@@ -31,9 +35,9 @@ load16B:
     jmp exit
 
 delay:
-    mov ah, 0x86       ; Wait function
-    mov cx, 0x002d     ; Upper 16 bits
-    mov dx, 0xc6c0     ; Lower 16 bits
+    mov ah, 0x86        ; Wait function
+    mov cx, 0x002d      ; Upper 16 bits
+    mov dx, 0xc6c0      ; Lower 16 bits
 
     ; Duration          CX:DX Value
     ; 500ms             0x0007, 0xA120
@@ -41,295 +45,64 @@ delay:
     ; 2s                0x001E, 0x8480
     ; 3s                0x002D, 0xC6C0
 
-    int 0x15           ; Call BIOS
+    int 0x15            ; Call BIOS
 
     mov ah, 0x01        ; BIOS check keyboard buffer
     int 0x16            ; zero flag (ZF) is set if no key is available
     jnz load16B
     ret
-    
+
+%include "includes/kernel16.asm"    ; includes input handling
 %include "includes/print16.asm"
-readInput:
-    mov di, inputBuffer     ; point to inputBuffer
-    xor cx, cx              ; track input length
-    .loop:
-        mov ah, 0x00        ; BIOS: Wait for keypress
-        int 0x16            ; AL = ASCII, AH = Scan code
 
-        cmp al, 13          ; compare with enter (ASCII 13)
-        je .return
-
-        cmp al, 8           ; compare with backspace (ASCII 8)
-        je .backspace
-        cmp al, 127         ; in some cases, QEMU treats backspace as delete
-        je .backspace
-
-        stosb               ; store al to buffer at [di], di++
-        inc cx
-
-        mov ah, 0x0e        ; BIOS: Print character in AL
-        int 0x10
-        jmp .loop
-    .backspace:
-        cmp cx, 0           ; do nothing if buffer is empty
-        je .loop
-
-        dec di              ; decrease di by 1
-        dec cx              ; reduce length by 1
-        mov byte [di], 0
-
-        mov al, 8           ; move cursor back
-        int 0x10
-        mov al, ' '         ; print a space to erase character
-        int 0x10
-        mov al, 8           ; move cursor back again to correct position
-        int 0x10
-        jmp .loop
-    .return:
-        xor al, al
-        stosb               ; null terminate the buffer
-        call println16
-        ret
-
-compareStrings:
-    .loop:
-        mov al, [si]    
-        mov bl, [di]
-
-        cmp bl, 0           ; check null terminator at end of string
-        je .equal
-        cmp al, bl          ; compare AL with BL
-        jne .notEqual
-
-        inc si
-        inc di
-
-        jmp .loop           ; otherwise, keep comparing
-
-    .notEqual:
-        ; mov si, debugNotEqual
-        ; call print16
-        ; call println16
-        xor ax, ax
-        ret
-
-    .equal:
-        ; mov si, debugEqual
-        ; call print16
-        ; call println16
-        mov ax, 1
-        ret
-
-processCommand:
-    mov si, inputBuffer
-    .checkEcho:
-        mov di, echoCmd
-        call compareStrings
-        test ax, ax
-        jz .checkClear
-
-        call handleEcho
-        ret
-
-    .checkClear:
-        mov di, clearCmd
-        call compareStrings
-        test ax, ax
-        jz .checkHelp
-
-        call handleClear
-        ret
-
-    .checkHelp:
-        mov di, helpCmd
-        call compareStrings
-        test ax, ax
-        jz .checkShutdown
-
-        call handleHelp
-        ret
-
-    .checkShutdown:
-        mov di, shutdownCmd
-        call compareStrings
-        test ax, ax
-        jz .checkRestart
-
-        call handleShutdown
-        ret
-    
-    .checkRestart:
-        mov di, restartCmd
-        call compareStrings
-        test ax, ax
-        jz .errorMessage
-
-        jmp handleRestart
-
-    .errorMessage:
-        mov si, errorMsg
-        call print16
-        call println16
-        ret
-
-handleEcho:
-    mov si, inputBuffer
-    add si, 5               ; skip "echo "
-    call print16
-    call println16
-    ret
-
-handleClear:
-    ; clear screen using BIOS function 0x06
-    mov ah, 0x06
-    mov al, 0               ; clear entire screen
-    mov bh, 0x07            ; text attribute (white on black)
-    mov cx, 0               ; upper-left corner
-    mov dx, 0x184f          ; lower-right corner (80x25 screen)
-    int 0x10                ; BIOS video interrupt
-
-    ; move cursor to top-left corner (0,0)
-    mov ah, 0x02            ; set cursor position
-    mov bh, 0               ; page number
-    mov dh, 0               ; row (Y = 0)
-    mov dl, 0               ; column (X = 0)
-    int 0x10                ; BIOS video interrupt
-
-    ret
-
-handleHelp:
-    mov si, helpMsg
-    call print16
-    call println16
-    ret
-
-handleShutdown:
-    mov si, shutdownMsg
-    call print16
-    call println16
-
-    ; Try to shut down using QEMU
-    mov ax, 0x5307          ; APM BIOS function
-    mov bx, 0x0001          ; device = Power Management
-    mov cx, 0x0003          ; command = Power Off
-    int 0x15                ; call BIOS
-
-    ; If APM fails, enter infinite halt
-    cli
-    hlt
-    jmp $
-
-handleRestart:
-    mov si, rebootMsg
-    call print16
-    call println16
-
-    ; Send CPU reset
-    jmp 0xffff:0x0000       ; Jump to BIOS reset vector
-
-exit:
-    cli
-    hlt
-    jmp $
-
-enableProtectedMode:
-    call handleClear
-    mov si, loading32Msg
-    call print16
-
-    mov si, debug
-    call print16
-    call println16
-
-    lgdt [gdt_descriptor]   ; load Global Descriptor Table (GDT)
-
-    mov si, debug
-    call print16
-    call println16
-
-    ; enable Protected Mode
-    cli
-    mov eax, cr0
-    or eax, 1               ; set PE (Protection Enable) bit
-    mov cr0, eax
-
-    mov si, debug
-    call print16
-    call println16
-
-    jmp CODE_SEG:init32     ; far jump to 32-bit mode (flush CPU pipeline)
-
-gdt_start:
-    dq 0x0000000000000000   ; null descriptor
-    dq 0x00cf9a000000ffff   ; code segment (32-bit)
-    dq 0x00cf92000000ffff   ; data segment (32-bit)
-
-gdt_descriptor:
-    dw gdt_descriptor - gdt_start - 1   ; limit
-    dd gdt_start                        ; base
-
-CODE_SEG equ 0x08
-DATA_SEG equ 0x10
-
-inputBuffer: times 32 db 0
-
-echoCmd db "echo", 0
-clearCmd db "clear", 0
-helpCmd db "help", 0
-shutdownCmd db "shutdown", 0
-restartCmd db "restart", 0
-
-debugEqual db "Strings match!", 0
-debugNotEqual db "Strings do not match!", 0
-debugTick db "Current: ", 0
-debug db "debug", 0
-
-errorMsg db "Command not found!", 0
-helpMsg db "Commands: echo, clear, help, shutdown, restart", 0
-shutdownMsg db "Shutting down...", 0
-rebootMsg db "Rebooting...", 0
 helloMsg db "Welcome to CelestineOS", 0
 
-bootMsg db "Press any key for 16-bit Kernel. Booting 32-bit in 3 seconds...", 0
+bootMsg db "Press any key for 16-bit kernel. Booting 32-bit kernel in 3 seconds...", 0
 loading16Msg db "Loading 16-bit kernel...", 0
 loading32Msg db "Loading 32-bit kernel...", 0
 
+; ====================== Transition to 32 bit ======================
+
+%include "includes/gdt.asm"
+enableProtectedMode:
+    cli
+    lgdt [gdt_descriptor]   ; load Global Descriptor Table (GDT)
+
+    ; enable Protected Mode
+    mov eax, cr0
+    or eax, 0x1             ; set PE bit
+    mov cr0, eax
+    
+    jmp CODE_SEG:init32     ; far jump to 32-bit mode
+    
+    mov si, loading32Msg
+    call print16
+
 [bits 32]
 init32:
-    cli
-    mov ax, DATA_SEG        ; Load 32-bit data segments
+    mov ax, DATA_SEG        ; update segment registers
     mov ds, ax
+    mov ss, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
-    mov ss, ax
-    mov esp, 0x90000        ; set stack pointer in high memory
 
+    mov ebp, 0x90000        ; set stack to top of free space
+    mov esp, ebp
+
+    jmp kernel
+
+kernel:
+    mov edi, 0xB8000
+    mov al, '!'
+    mov ah, 0x07
+    stosw
+
+    mov esi, welcomeMsg
+    call print32
     jmp $
 
-clearScreen32:
-    mov edi, 0xB8000        ; VGA memory address
-    mov eax, 0x07200720     ; space (' ') with color attribute 0x07
-    mov ecx, 2000           ; 80x25 screen (2000 characters)
-    rep stosd               ; fill VGA memory
-    ret
-
-print32:
-    pusha
-    mov edi, 0xB8000        ; VGA memory address
-
-    .loop:
-        lodsb               ; load next character from [esi] into AL
-        test al, al         ; check if null terminator
-        je .done
-        mov ah, 0x07        ; attribute (white text on black background)
-        stosw               ; store character + attribute in VGA memory
-        jmp .loop
-
-    .done:
-        popa
-        ret
+%include "includes/print32.asm"
 
 welcomeMsg db "Welcome to 32-bit mode!", 0
-
 times 1024 - ($ - $$) db 0

@@ -1,5 +1,5 @@
-org 0x7c00              ; BIOS loads the bootloader at 0x7c00
-bits 16                 ; 16-bit real mode
+[org 0x7c00]            ; BIOS loads the bootloader at 0x7c00
+[bits 16]               ; 16-bit real mode
 
 start:
     mov [bootDrive], dl
@@ -8,31 +8,20 @@ start:
     call print16
 
     mov ah, 0x0e
-    mov al, 2           ; number of sectors to load
+    mov al, 0x02        ; number of sectors to load
     mov dl, [bootDrive] ; driver number to load (0 = boot disk)
 
-    ; ES:BX (address:offset)
-    mov bx, 0x9000
-    mov es, bx
-    mov bx, 0
+    mov bp, 0x8000      ; set the stack somwhere safe
+    mov sp, bp
 
+    mov bx, 0x9000      ; es:bx = 0x0000:0x9000 = 0x09000
     call diskLoad
 
     call println16
-    ; mov si, bootJumpMsg
-    ; call print16
-    call println16
+    mov si, bootJumpMsg
+    call print16
 
-    cli
-    mov ax, 0x9000
-    mov ds, ax
-    mov es, ax
-    ; mov ax, 0x7000  ; Move stack lower
-    ; mov ss, ax
-    ; mov sp, 0xfff0
-    sti
-
-    jmp 0x9000:0000
+    jmp 0:0x9000
 
 %include "includes/print16.asm"
 %include "includes/diskLoad.asm"
