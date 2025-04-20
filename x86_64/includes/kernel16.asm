@@ -183,7 +183,7 @@ exit:
 
 inputBuffer: times 32 db 0
 
-echoCmd db "echo", 0
+echoCmd db "echo ", 0
 clearCmd db "clear", 0
 helpCmd db "help", 0
 shutdownCmd db "shutdown", 0

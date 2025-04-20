@@ -36,8 +36,8 @@ load16B:
 
 delay:
     mov ah, 0x86        ; Wait function
-    mov cx, 0x002d      ; Upper 16 bits
-    mov dx, 0xc6c0      ; Lower 16 bits
+    mov cx, 0x0007      ; Upper 16 bits
+    mov dx, 0xA120      ; Lower 16 bits
 
     ; Duration          CX:DX Value
     ; 500ms             0x0007, 0xA120
@@ -66,21 +66,18 @@ loading32Msg db "Loading 32-bit kernel...", 0
 %include "includes/gdt.asm"
 enableProtectedMode:
     cli
-    lgdt [gdt_descriptor]   ; load Global Descriptor Table (GDT)
+    lgdt [gdt32_descriptor]   ; load Global Descriptor Table (GDT)
 
     ; enable Protected Mode
     mov eax, cr0
     or eax, 0x1             ; set PE bit
     mov cr0, eax
     
-    jmp CODE_SEG:init32     ; far jump to 32-bit mode
-    
-    mov si, loading32Msg
-    call print16
+    jmp CODE32_SEL:init32   ; far jump to 32-bit mode
 
 [bits 32]
 init32:
-    mov ax, DATA_SEG        ; update segment registers
+    mov ax, DATA32_SEL      ; update segment registers
     mov ds, ax
     mov ss, ax
     mov es, ax
@@ -93,16 +90,13 @@ init32:
     jmp kernel
 
 kernel:
-    mov edi, 0xB8000
-    mov al, '!'
-    mov ah, 0x07
-    stosw
+    call clearScreen32
 
     mov esi, welcomeMsg
     call print32
     jmp $
 
-%include "includes/print32.asm"
+%include "includes/utils32.asm"
 
-welcomeMsg db "Welcome to 32-bit mode!", 0
-times 1024 - ($ - $$) db 0
+welcomeMsg db "Successfully entered 32-bit mode. Attempting to enter long mode.", 0
+times 1536 - ($ - $$) db 0

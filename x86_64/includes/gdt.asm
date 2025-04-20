@@ -1,34 +1,25 @@
-gdt_start: 
-    ; GDT starts with a null 8-byte
-    dd 0x0          ; 4 byte
-    dd 0x0          ; 4 byte
+; 32-bit GDT
+gdt32_start:  dq 0
+    dq 0x00CF9A000000FFFF  ; flat code
+    dq 0x00CF92000000FFFF  ; flat data
+gdt32_end:
+gdt32_descriptor:
+    dw gdt32_end - gdt32_start - 1
+    dd gdt32_start
 
-; GDT for code segment. base = 0x00000000, length = 0xfffff
-gdt_code: 
-    dw 0xffff       ; segment length, bits 0-15
-    dw 0x0          ; segment base, bits 0-15
-    db 0x0          ; segment base, bits 16-23
-    db 10011010b    ; flags (8 bits)
-    db 11001111b    ; flags (4 bits) + segment length, bits 16-19
-    db 0x0          ; segment base, bits 24-31
+; 64‑bit GDT: same descriptors, but with long mode flags
+gdt64_start:  
+    dq 0
+    dq 0x00AF9A000000FFFF  ; long code
+    dq 0x00AF92000000FFFF  ; long data
+gdt64_end:
+gdt64_descriptor:
+    dw gdt64_end - gdt64_start - 1
+    dd gdt64_start
 
-; GDT for data segment. base and length identical to code segment
-gdt_data:
-    dw 0xffff
-    dw 0x0
-    db 0x0
-    db 10010010b
-    db 11001111b
-    db 0x0
+; (identity‑mapped 2 MiB pages go here)
+; pml4_table, pdpt_table, pd_table …
 
-gdt_end:
-
-; GDT descriptor
-gdt_descriptor:
-    dw gdt_end - gdt_start - 1  ; size (16 bit), always one less of its true size
-    dd gdt_start                ; address (32 bit)
-
-; define some constants for later use
-CODE_SEG equ gdt_code - gdt_start
-DATA_SEG equ gdt_data - gdt_start
-
+CODE32_SEL equ 0x08
+DATA32_SEL equ 0x10
+CODE64_SEL equ 0x08        ; first non‑null in 64‑bit GDT
