@@ -1,12 +1,12 @@
 ; Get number of sectors from AL and drive number DL before execution
 diskLoad:
-    mov ah, 0x02        ; BIOS Read Sectors
-    mov ch, 0           ; Cylinder 0
-    mov cl, 0x02        ; Sector 2 (Bootloader is sector 1)
-    mov dh, 0           ; Head 0
+    mov ah, 0x02        ; BIOS read sectors
+    mov ch, 0           ; cylinder 0
+    mov cl, 0x02        ; sector 2 (bootloader is sector 1)
+    mov dh, 0           ; head 0
 
     int 0x13            ; BIOS disk read
-    jc diskError        ; If error, jump to diskError
+    jc diskError        ; jump if error
 
     call println16
     mov si, successMsg
@@ -14,9 +14,10 @@ diskLoad:
     ret
 
 diskError:
+    ; print error code
     call println16
-    mov al, ah          ; Print BIOS error code
-    call printHexLower16
+    mov al, ah          
+    call printHex16
     
     mov si, errorMsg
     call print16

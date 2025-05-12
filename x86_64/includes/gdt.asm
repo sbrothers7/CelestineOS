@@ -1,5 +1,6 @@
 ; 32-bit GDT
-gdt32_start:  dq 0
+gdt32_start:  
+    dq 0
     dq 0x00CF9A000000FFFF  ; flat code
     dq 0x00CF92000000FFFF  ; flat data
 gdt32_end:

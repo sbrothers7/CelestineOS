@@ -26,7 +26,7 @@ start:
 %include "includes/print16.asm"
 %include "includes/diskLoad.asm"
 
-bootMsg: db "Loading CelestineOS...", 0
+bootMsg: db "Loading second stage bootloader...", 0
 bootJumpMsg: db "Jumping...", 0
 bootDrive: db 0
 

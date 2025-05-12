@@ -52,7 +52,7 @@ delay:
     jnz load16B
     ret
 
-%include "includes/kernel16.asm"    ; includes input handling
+%include "includes/kernel16.asm"    ; input handling
 %include "includes/print16.asm"
 
 helloMsg db "Welcome to CelestineOS", 0
@@ -65,8 +65,18 @@ loading32Msg db "Loading 32-bit kernel...", 0
 
 %include "includes/gdt.asm"
 enableProtectedMode:
+    ; disable NMI
+    in   al, 0x70           ; read current value from port 0x70
+    or   al, 0x80           ; set NMI disable bit (bit 7)
+    out  0x70, al           ; write back modified value to 0x70
+    in   al, 0x71           ; dummy read from CMOS data port (0x71)
+    
+    ; enable A20 line
+    call checkA20
+    int 0x10
+
     cli
-    lgdt [gdt32_descriptor]   ; load Global Descriptor Table (GDT)
+    lgdt [gdt32_descriptor] ; load Global Descriptor Table (GDT)
 
     ; enable Protected Mode
     mov eax, cr0
@@ -74,6 +84,8 @@ enableProtectedMode:
     mov cr0, eax
     
     jmp CODE32_SEL:init32   ; far jump to 32-bit mode
+
+%include "includes/A20.asm"
 
 [bits 32]
 init32:
@@ -87,16 +99,17 @@ init32:
     mov ebp, 0x90000        ; set stack to top of free space
     mov esp, ebp
 
-    jmp kernel
-
-kernel:
     call clearScreen32
-
-    mov esi, welcomeMsg
+    mov esi, success32Msg
     call print32
     jmp $
 
 %include "includes/utils32.asm"
 
-welcomeMsg db "Successfully entered 32-bit mode. Attempting to enter long mode.", 0
+success32Msg db "Successfully entered 32-bit mode. Attempting to enter long mode.", 0
+
+; ====================== Transition to 64 bit ======================
+
+
+
 times 1536 - ($ - $$) db 0
