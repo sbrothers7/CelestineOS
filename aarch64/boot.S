@@ -1,10 +1,14 @@
 .global _start
 .section .text
-.align 4
+
 _start:
     ldr x0, =msgReadChar
     bl uartPrint
-    /*bl uartReadChar
+
+    ldr x29, =stack_top   // x29 is just a temporary here
+    mov sp, x29          // SP now points to a safe area
+      
+    bl uartReadChar
     bl uartEchoChar
 
     ldr x0, =msgNewline
@@ -13,9 +17,9 @@ _start:
     ldr x0, =msgReadString
     bl uartPrint
     bl uartReadString
-    */
+    
     afterInput:
-        bl uartPrint
+        bl _start
 // ---------------------- Functions ----------------------
 uartPrint: // prints strings with address stored in x0
     ldr x1, =uartBase
@@ -148,6 +152,9 @@ strEcho: .asciz "echo"
 inputBuffer: .skip 128 // reserve space
 .equ inputSize, 127 // leave space for null terminator
 hexBuffer: .skip 17  // 16 hex digits + null terminator
+
+stack:      .skip 4096      // 4 KiB scratch stack
+stack_top:                  // label *after* the buffer
 
 .equ uartBase,  0x09000000   // UART data register
 .equ uartFlag,  0x09000018   // UART flags register
