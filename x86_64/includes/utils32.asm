@@ -18,7 +18,7 @@ print32:
 clearScreen32:
     pusha
     cld
-    mov edi, 0xB8000        ; VGA memory address
+    mov edi, 0xb8000        ; VGA memory address
     mov eax, 0x0720         ; space (' ') with color attribute 0x07
     mov ecx, 80 * 25        ; 80x25 screen
     rep stosw               ; fill VGA memory

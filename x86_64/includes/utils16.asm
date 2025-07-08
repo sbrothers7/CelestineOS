@@ -22,6 +22,8 @@ println16:
 printHex16:
     pusha
     
+    mov ah, 0x0e
+
     ; print prefix
     mov al, '0'
     int 0x10
@@ -54,4 +56,37 @@ printHex16:
         popa
         ret
 
+; Get number of sectors from AL and drive number DL before execution
+diskLoad:
+    mov ah, 0x02        ; BIOS read sectors
+    mov ch, 0           ; cylinder 0
+    mov cl, 0x02        ; sector 2 (bootloader is sector 1)
+    mov dh, 0           ; head 0
+
+    int 0x13            ; BIOS disk read
+    jc diskError        ; jump if error
+
+    call println16
+    mov si, diskSuccessMsg
+    call print16
+    ret
+
+diskError:
+    ; print error code
+    call println16
+    mov al, ah          
+    call printHex16
+    
+    mov si, diskErrorMsg
+    call print16
+    jmp halt
+
+halt:
+    cli
+    hlt
+    jmp halt
+
+
+diskErrorMsg: db " Disk read error!", 0
+diskSuccessMsg: db "Success!", 0
 hexBuffer: db "0000", 0
