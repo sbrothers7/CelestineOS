@@ -1,5 +1,0 @@
-./compile
-qemu-system-x86_64 -drive format=raw,file=disk.img -s
-
-gdb
-target remote localhost:1234

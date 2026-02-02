@@ -1,6 +1,0 @@
-./compile
-
-qemu-system-x86_64 \
-  -drive file=disk.img,format=raw \
-  -display curses \
-  -monitor stdio
